@@ -2,8 +2,17 @@ from PIL import Image
 import io
 import rpc
 import struct
+import serial
 
-interface = rpc.rpc_usb_vcp_slave()
+ports = serial.tools.list_ports.comports()
+for i, port in enumerate(ports):
+    print(i, port)
+
+port = int(input("Enter the port number: "))
+port = ports[port].device
+
+
+interface = rpc.rpc_usb_vcp_slave(port)
 
 
 def get_frame_buffer_call_back(pixformat_str="sensor.GRAYSCALE", framesize_str="sensor.B128X128", cutthrough=True, silent=True):
