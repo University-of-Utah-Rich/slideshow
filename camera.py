@@ -2,20 +2,37 @@ from PIL import Image
 import io
 import rpc
 import struct
-import serial
-
-ports = serial.tools.list_ports.comports()
-for i, port in enumerate(ports):
-    print(i, port)
-
-port = int(input("Enter the port number: "))
-port = ports[port].device
+from serial.tools import list_ports
+import logging
 
 
-interface = rpc.rpc_usb_vcp_slave(port)
+def connect(port=None):
+    if port is None:
+        ports = list_ports.comports()
+        for i, port in enumerate(ports):
+            print(i, port)
+
+        try:
+            port = int(input("Enter the port number: "))
+        except ValueError:
+            port = -1
+        if port < 0 or port >= len(ports):
+            port = None
+        else:
+            port = ports[port].device
+    try:
+        if port is None:
+            raise Exception("No port selected")
+        return rpc.rpc_usb_vcp_slave(port)
+    except Exception as e:
+        logging.warning("Could not connect to the camera! Would you like to proceed without the camera? (y/n)")
+        if input().lower() == "y":
+            return None
+        else:
+            raise e
 
 
-def get_frame_buffer_call_back(pixformat_str="sensor.GRAYSCALE", framesize_str="sensor.B128X128", cutthrough=True, silent=True):
+def get_frame_buffer_call_back(interface, pixformat_str="sensor.GRAYSCALE", framesize_str="sensor.B128X128", cutthrough=True, silent=True):
     ''' Gets a frame buffer from the remote device.
 
     Gets a frame buffer in JPEG format from the remote device
@@ -87,8 +104,10 @@ def get_frame_buffer_call_back(pixformat_str="sensor.GRAYSCALE", framesize_str="
     return None
 
 
-def get_image():
-    img = get_frame_buffer_call_back()
+def get_image(camera):
+    if camera is None:
+        return None
+    img = get_frame_buffer_call_back(camera)
     if img is not None:
         # save the image to a file
         image = Image.open(io.BytesIO(img))
